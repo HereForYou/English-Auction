@@ -150,7 +150,6 @@ let EnglishAuction: any;
 
 describe("EnglishAuction", function () {
     
-
     beforeEach(async function () {
       [seller, bidder1, bidder2] = await ethers.getSigners();
 
@@ -222,3 +221,93 @@ describe("EnglishAuction", function () {
     });
 });
 
+describe("DutchAuction", function () {
+  let DutchAuction: any;
+  let auction: any;
+  let NFT: any;
+  let nft: any;
+  let seller: Signer;
+  let buyer1: Signer;
+  let buyer2: Signer;
+  const startingPrice = ethers.parseEther("100"); // 10 Ether
+  const discountRate = ethers.parseEther("0.0001"); // 1 Ether per second
+
+  beforeEach(async function () {
+      [seller, buyer1, buyer2] = await ethers.getSigners();
+
+      // Deploy a mock ERC721 NFT contract
+      NFT = await ethers.getContractFactory("MockNFT");
+      nft = await NFT.deploy();
+
+      // Mint an NFT to the seller
+      await nft.mint(await seller.getAddress(), 1);
+
+      // Deploy the DutchAuction contract
+      DutchAuction = await ethers.getContractFactory("DutchAuction");
+      auction = await DutchAuction.deploy(startingPrice, discountRate, nft.getAddress(), 1);
+  });
+
+  it("should start with the correct parameters", async function () {
+      expect(await auction.startingPrice()).to.equal(startingPrice);
+      expect(await auction.discountRate()).to.equal(discountRate);
+      expect(await auction.seller()).to.equal(await seller.getAddress());
+  });
+
+  it("should calculate the correct price over time", async function () {
+      await ethers.provider.send("evm_increaseTime", [1]); // Increase time by 1 second
+      await ethers.provider.send("evm_mine"); // Mine a new block
+
+      const priceAfterOneSecond = await auction.getPrice();
+      expect(priceAfterOneSecond).to.equal(startingPrice-discountRate);
+
+      await ethers.provider.send("evm_increaseTime", [5]); // Increase time by 5 seconds
+      await ethers.provider.send("evm_mine"); // Mine a new block
+
+      const priceAfterSixSeconds = await auction.getPrice();
+      expect(priceAfterSixSeconds).to.equal(startingPrice-discountRate*BigInt(6));
+  });
+
+  it("should allow a buyer to purchase the NFT", async function () {
+      await ethers.provider.send("evm_increaseTime", [1]); // Increase time by 1 second
+      await ethers.provider.send("evm_mine"); // Mine a new block
+
+      const price = await auction.getPrice();
+      await auction.connect(buyer1).buy({ value: price });
+
+      expect(await nft.ownerOf(1)).to.equal(await buyer1.getAddress());
+  });
+
+  it("should refund excess Ether after purchase", async function () {
+      await ethers.provider.send("evm_increaseTime", [1]); // Increase time by 1 second
+      await ethers.provider.send("evm_mine"); // Mine a new block
+
+      const price = await auction.getPrice();
+      const initialBalance = await ethers.provider.getBalance(await buyer1.getAddress());
+
+      const tx = await auction.connect(buyer1).buy({ value: price+ethers.parseEther("1") });
+      const receipt = await tx.wait();
+      const gasUsed = receipt.gasUsed*receipt.gasPrice;
+      
+      const finalBalance = await ethers.provider.getBalance(await buyer1.getAddress());
+      expect(finalBalance).to.be.equal(initialBalance-price-BigInt(gasUsed)+ethers.parseEther("0.0001"));
+  });
+
+  it("should not allow purchase after the auction ends", async function () {
+      await ethers.provider.send("evm_increaseTime", [7 * 24 * 60 * 60 + 1]); // Increase time by 7 days + 1 second
+      await ethers.provider.send("evm_mine"); // Mine a new block
+
+      await expect(auction.connect(buyer1).buy({ value: ethers.parseEther("1") }))
+          .to.be.revertedWith("Auction has been ended.");
+  });
+
+  it("should not allow purchase if not enough Ether is sent", async function () {
+      await ethers.provider.send("evm_increaseTime", [1]); // Increase time by 1 second
+      await ethers.provider.send("evm_mine"); // Mine a new block
+
+      const price = await auction.getPrice();
+      console.log("price",price)
+    //   console.log("price", price - BigInt(500000000000000))
+      await expect(auction.connect(buyer1).buy({ value: price - BigInt(500000000000000) }))
+          .to.be.revertedWith("cost < price");
+  });
+});
