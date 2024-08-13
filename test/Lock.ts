@@ -221,6 +221,50 @@ describe("EnglishAuction", function () {
     });
 });
 
+describe('EtherWallet', () => { 
+    let owner: any;
+    let other: any;
+    let EtherWallet: any;
+    let etherWallet: any;
+
+    beforeEach(async function () {
+        [owner, other] = await ethers.getSigners();
+
+        EtherWallet = await ethers.getContractFactory("EtherWallet");
+        etherWallet = await EtherWallet.deploy();
+    })
+
+    it("should start with correct parameters", async function () {
+        expect(await etherWallet.owner()).to.equal(await owner.getAddress());
+    })
+
+    it("Should accept funds", async function () {
+        const sendValue = ethers.parseEther("1.4");
+
+        await owner.sendTransaction({
+            to: await etherWallet.getAddress(),
+            value: sendValue,
+        });
+
+        const balance = await etherWallet.getBalance();
+        expect(balance).to.equal(sendValue);
+    })
+
+    it("should not allow to withdraw if not owner", async function () {
+        const sendValue = ethers.parseEther("1.0");
+
+        await owner.sendTransaction({
+            to: await etherWallet.getAddress(),
+            value: sendValue,
+        });
+
+        const withdrawAmount =  ethers.parseEther("0.5");
+        // await etherWallet.connect(await owner.getAddress()).withdraw({value: 2})
+        await  expect(etherWallet.connect(other).withdraw(withdrawAmount))
+            .to.be.revertedWith("Only owner can withdraw.");
+    })
+})
+
 describe("DutchAuction", function () {
   let DutchAuction: any;
   let auction: any;
@@ -305,8 +349,6 @@ describe("DutchAuction", function () {
       await ethers.provider.send("evm_mine"); // Mine a new block
 
       const price = await auction.getPrice();
-      console.log("price",price)
-    //   console.log("price", price - BigInt(500000000000000))
       await expect(auction.connect(buyer1).buy({ value: price - BigInt(500000000000000) }))
           .to.be.revertedWith("cost < price");
   });
