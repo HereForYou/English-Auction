@@ -139,6 +139,8 @@ describe("Lock", function () {
 });
 
 
+//==================================================== EnglishAuction.test.ts ====================================================
+
 let EnglishAuction: any;
     let auction: any;
     let NFT: any;
@@ -221,6 +223,8 @@ describe("EnglishAuction", function () {
     });
 });
 
+//=========================================== EtherWallet.test.ts ===========================================
+
 describe('EtherWallet', () => { 
     let owner: any;
     let other: any;
@@ -264,6 +268,8 @@ describe('EtherWallet', () => {
             .to.be.revertedWith("Only owner can withdraw.");
     })
 })
+
+//============================================================ Dutch Auction ============================================================
 
 describe("DutchAuction", function () {
   let DutchAuction: any;
@@ -352,4 +358,93 @@ describe("DutchAuction", function () {
       await expect(auction.connect(buyer1).buy({ value: price - BigInt(500000000000000) }))
           .to.be.revertedWith("cost < price");
   });
+});
+
+//======================================================== Multi Sig Wallet Test ========================================================
+
+describe("MultiSigWallet", function () {
+    let multiSigWallet: any;
+    let owner1: any;
+    let owner2: any;
+    let owner3: any;
+    let nonOwner: any;
+
+    const numConfirmationsRequired = 2;
+    let owners: string[] = [];
+
+    beforeEach(async function () {
+        [owner1, owner2, owner3, nonOwner] = await ethers.getSigners();
+        owners = [];
+        owners.push(owner1.address, owner2.address, owner3.address);
+
+        const MultiSigWallet = await ethers.getContractFactory("MultiSigWallet");
+        multiSigWallet = await MultiSigWallet.deploy(owners, numConfirmationsRequired);
+    });
+
+    it("should allow owners to submit transactions", async function () {
+        const tx = await multiSigWallet.submitTransaction(owner1.address, ethers.parseEther("1"), "0x");
+        await tx.wait();
+
+        const transactionCount = await multiSigWallet.getTransactionCount();
+        expect(transactionCount).to.equal(1);
+    });
+
+    it("should allow owners to confirm transactions", async function () {
+        await multiSigWallet.submitTransaction(owner1.address, ethers.parseEther("1"), "0x");
+
+        await multiSigWallet.connect(owner1).confirmTransaction(0);
+        await multiSigWallet.connect(owner2).confirmTransaction(0);
+
+        const transaction = await multiSigWallet.getTransaction(0);
+        expect(transaction.numConfirmations).to.equal(2);
+    });
+
+    it("should execute a transaction when enough confirmations are received", async function () {
+        // const SimpleReceiver = await ethers.getContractFactory("SimpleReceiver");
+        // const simpleReceiver = await SimpleReceiver.deploy();
+        console.log("1");
+        await multiSigWallet.submitTransaction(owner2.address, ethers.parseEther("0"), "0x");
+
+        console.log("2");
+        await multiSigWallet.connect(owner1).confirmTransaction(0);
+        await multiSigWallet.connect(owner2).confirmTransaction(0);
+
+        await expect(multiSigWallet.connect(owner1).executionTransaction(0)).to.emit(multiSigWallet, "ExecuteTransaction");
+
+        // console.log("3");
+        // const initialBalance = await ethers.provider.getBalance(owner1.address);
+        // console.log("3.5", " initialBalance ", initialBalance);
+        // await multiSigWallet.connect(owner1).executionTransaction(0);
+
+        // console.log("4");
+        // const finalBalance = await ethers.provider.getBalance(owner1.address);
+        // expect(finalBalance).to.be.gt(initialBalance);
+        // console.log("5");
+    });
+
+    it("should not execute a transaction with insufficient confirmations", async function () {
+        await multiSigWallet.submitTransaction(owner1.address, ethers.parseEther("1"), "0x");
+
+        await multiSigWallet.connect(owner1).confirmTransaction(0);
+
+        await expect(multiSigWallet.connect(owner2).executionTransaction(0)).to.be.revertedWith("Can not execut tx");
+    });
+
+    it("should allow owners to revoke their confirmation", async function () {
+        await multiSigWallet.submitTransaction(owner1.address, ethers.parseEther("1"), "0x");
+
+        await multiSigWallet.connect(owner1).confirmTransaction(0);
+        await multiSigWallet.connect(owner2).confirmTransaction(0);
+        
+        await multiSigWallet.connect(owner1).revokeTransaction(0);
+
+        const transaction = await multiSigWallet.getTransaction(0);
+        expect(transaction.numConfirmations).to.equal(1);
+    });
+
+    it("should not allow non-owners to submit transactions", async function () {
+        await expect(
+            multiSigWallet.connect(nonOwner).submitTransaction(owner1.address, ethers.parseEther("1"), "0x")
+        ).to.be.revertedWith("Not owner");
+    });
 });
