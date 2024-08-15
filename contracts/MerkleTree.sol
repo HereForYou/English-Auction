@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+// Uncomment this line to use console.log
+import "hardhat/console.sol";
+
 contract MerkleProof {
     function verify(
         bytes32[] memory proof,
@@ -18,7 +21,12 @@ contract MerkleProof {
             } else {
                 hash = keccak256(abi.encodePacked(proofElement, hash));
             }
+
+            index = index / 2;
         }
+
+        console.logBytes32(hash);
+        return hash == root;
     }
 }
 

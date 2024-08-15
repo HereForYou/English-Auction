@@ -402,10 +402,10 @@ describe("MultiSigWallet", function () {
     it("should execute a transaction when enough confirmations are received", async function () {
         // const SimpleReceiver = await ethers.getContractFactory("SimpleReceiver");
         // const simpleReceiver = await SimpleReceiver.deploy();
-        console.log("1");
+        // console.log("1");
         await multiSigWallet.submitTransaction(owner2.address, ethers.parseEther("0"), "0x");
 
-        console.log("2");
+        // console.log("2");
         await multiSigWallet.connect(owner1).confirmTransaction(0);
         await multiSigWallet.connect(owner2).confirmTransaction(0);
 
@@ -447,4 +447,65 @@ describe("MultiSigWallet", function () {
             multiSigWallet.connect(nonOwner).submitTransaction(owner1.address, ethers.parseEther("1"), "0x")
         ).to.be.revertedWith("Not owner");
     });
+});
+
+// ------------------------------------------------------------- MerkleTree Test -----------------------------------------------------------------------------
+import { MerkleProofTest } from "../typechain-types";
+
+describe("MerkleProofTest", function () {
+  let merkleProofTest: MerkleProofTest;
+
+  before(async function () {
+    const MerkleProofTest = await ethers.getContractFactory("MerkleProofTest");
+    merkleProofTest = await MerkleProofTest.deploy();
+    await merkleProofTest.waitForDeployment();
+  });
+
+  it("should correctly calculate the Merkle root", async function () {
+    const root = await merkleProofTest.getRoot();
+    expect(root).to.not.equal(ethers.ZeroHash);
+  });
+
+  it("should verify a valid Merkle proof", async function () {
+    const transactions = [
+      "alice -> bob",
+      "bob -> carol",
+      "carol -> alice",
+      "dave -> bob",
+    ];
+
+    // Calculate leaf hash
+    const leafIndex = 2; // We'll prove "carol -> alice"
+    const leaf = await merkleProofTest.hashes(leafIndex);
+
+    // Calculate proof
+    const proof = [];
+    let index = leafIndex;
+    for (let i = 0; i < 2; i++) {
+      // 2 levels in our tree
+      if (index % 2 === 0) {
+        proof.push(await merkleProofTest.hashes(index + 1));
+      } else {
+        proof.push(await merkleProofTest.hashes(index - 1));
+      }
+      index = Math.floor(index / 2) + 4; // Move to next level
+    }
+
+    const root = await merkleProofTest.getRoot();
+
+    const result = await merkleProofTest.verify(proof, root, leaf, leafIndex);
+    console.log("root", root,"result", result);
+    expect(result).to.be.true;
+  });
+
+  it("should not verify an invalid Merkle proof", async function () {
+    const invalidLeaf = ethers.keccak256(
+      ethers.toUtf8Bytes("invalid -> transaction")
+    );
+    const root = await merkleProofTest.getRoot();
+    const proof = [ethers.ZeroHash, ethers.ZeroHash];
+
+    const result = await merkleProofTest.verify(proof, root, invalidLeaf, 0);
+    expect(result).to.be.false;
+  });
 });
