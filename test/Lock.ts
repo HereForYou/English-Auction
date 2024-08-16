@@ -566,3 +566,48 @@ describe("MerkleProofTest", function () {
 //     expect(value).to.equal(300);
 //   });
 // });
+
+//======================================================== ERC20 token Test =============================================================
+import { ERC20 } from "../typechain-types";
+
+describe("Testing ERC20", function () {
+  let ERC20: any;
+  let erc20: ERC20;
+  let owner: any;
+  let addr1: any;
+  let addr2: any;
+
+  beforeEach(async function () {
+    ERC20 = await ethers.getContractFactory("ERC20");
+    erc20 = await ERC20.deploy("Smart Fox", "SFox", 18);
+    await erc20.waitForDeployment();
+
+    [owner, addr1, addr2] = await ethers.getSigners();
+  })
+
+  it("should have correct name, symbol and decimals", async function () {
+    expect(await erc20.name()).to.equal("Smart Fox");
+    expect(await erc20.symbol()).to.equal("SFox");
+    expect(await erc20.decimals()).to.equal(18);
+  })
+
+  it("Should assign total supply of tokens to owner", async function () {
+    const initialSupply = ethers.parseUnits("1000", 18);
+    await erc20.mint(owner.address, initialSupply);
+    expect(await erc20.totalSupply()).to.equal(initialSupply);
+  })
+
+  it("Should transfer tokens between accounts", async function () {
+    const initialSupply = ethers.parseUnits("1000", 18);
+    await erc20.mint(owner.address, initialSupply);
+    await erc20.transfer(addr1.address, ethers.parseUnits("100", 18));
+    expect(await erc20.balanceOf(addr1.address)).to.equal(ethers.parseUnits("100", 18));
+    expect(await erc20.balanceOf(owner.address)).to.equal(ethers.parseUnits("900", 18));
+  })
+
+  it("Should emit Transfer events on transfers", async function () {
+    const initialBalance = ethers.parseUnits("1000", 18);
+    await erc20.mint(owner.address, initialBalance);
+    await expect(erc20.transfer(addr1.address, ethers.parseUnits("100", 18))).to.emit(erc20, "Transfer").withArgs(owner.address, addr1.address, ethers.parseUnits("100", 18));
+  })
+})
