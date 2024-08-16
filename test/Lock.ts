@@ -509,3 +509,60 @@ describe("MerkleProofTest", function () {
     expect(result).to.be.false;
   });
 });
+
+//======================================================== Iterating Map Test ========================================================
+// import { TestIterableMap } from '../typechain-types'
+
+// describe("Iterating Map Test", function () {
+//   let testIterableMap: any;
+
+//   beforeEach(async () => {
+//     const IterableMapping = await ethers.getContractFactory("IterableMapping");
+//     const iterableMapping = await IterableMapping.deploy();
+//     await iterableMapping.waitForDeployment();
+  
+//     const TestIterableMap = await ethers.getContractFactory("TestIterableMap", {
+//       libraries: {
+//         IterableMapping: await iterableMapping.getAddress(),
+//       },
+//     });
+  
+//     testIterableMap = await TestIterableMap.deploy();
+//     await testIterableMap.waitForDeployment();
+//   });
+
+//   it("should set and retrieve values correctly", async function () {
+//     await testIterableMap.set(testIterableMap, ethers.ZeroAddress, 0);
+//     await testIterableMap.set(ethers.getAddress("0x0000000000000000000000000000000000000001"), 100);
+//     await testIterableMap.set(ethers.getAddress("0x0000000000000000000000000000000000000002"), 200);
+//     await testIterableMap.set(ethers.getAddress("0x0000000000000000000000000000000000000003"), 300);
+
+//     for (let i = 0; i < await testIterableMap.size(); i++) {
+//       const key = await testIterableMap.getKeyAtIndex(i);
+//       const value = await testIterableMap.get(key);
+//       expect(value).to.equal(i * 100);
+//     }
+//   });
+
+//   it("should remove an entry and update size correctly", async function () {
+//     await testIterableMap.set(ethers.ZeroAddress, 0);
+//     await testIterableMap.set(ethers.getAddress("0x0000000000000000000000000000000000000001"), 100);
+//     await testIterableMap.set(ethers.getAddress("0x0000000000000000000000000000000000000002"), 200);
+    
+//     await testIterableMap.remove(ethers.getAddress("0x0000000000000000000000000000000000000001"));
+
+//     expect(await testIterableMap.size()).to.equal(2);
+//     expect(await testIterableMap.getKeyAtIndex(0)).to.equal(ethers.ZeroAddress);
+//     expect(await testIterableMap.getKeyAtIndex(1)).to.equal(ethers.getAddress("0x0000000000000000000000000000000000000002"));
+//   });
+
+//   it("should handle updates correctly", async function () {
+//     await testIterableMap.set(ethers.ZeroAddress, 0);
+//     await testIterableMap.set(ethers.getAddress("0x0000000000000000000000000000000000000002"), 200);
+    
+//     await testIterableMap.set(ethers.getAddress("0x0000000000000000000000000000000000000002"), 300); // Update
+
+//     const value = await testIterableMap.get(ethers.getAddress("0x0000000000000000000000000000000000000002"));
+//     expect(value).to.equal(300);
+//   });
+// });
