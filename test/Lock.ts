@@ -610,4 +610,32 @@ describe("Testing ERC20", function () {
     await erc20.mint(owner.address, initialBalance);
     await expect(erc20.transfer(addr1.address, ethers.parseUnits("100", 18))).to.emit(erc20, "Transfer").withArgs(owner.address, addr1.address, ethers.parseUnits("100", 18));
   })
+  it("Should approve tokens for spending by another account", async function () {
+    const initialSupply = ethers.parseUnits("1000", 18);
+    await erc20.mint(owner.address, initialSupply);
+
+    await erc20.approve(addr1.address, ethers.parseUnits("100", 18));
+    expect(await erc20.allowance(owner.address, addr1.address)).to.equal(ethers.parseUnits("100", 18));
+});
+
+it("Should transfer tokens from one account to another using transferFrom", async function () {
+    const initialSupply = ethers.parseUnits("1000", 18);
+    await erc20.mint(owner.address, initialSupply);
+
+    await erc20.approve(addr1.address, ethers.parseUnits("100", 18));
+    await erc20.connect(addr1).transferFrom(owner.address, addr2.address, ethers.parseUnits("100", 18));
+
+    expect(await erc20.balanceOf(addr2.address)).to.equal(ethers.parseUnits("100", 18));
+    expect(await erc20.balanceOf(owner.address)).to.equal(ethers.parseUnits("900", 18));
+});
+
+it("Should burn tokens", async function () {
+    const initialSupply = ethers.parseUnits("1000", 18);
+    await erc20.mint(owner.address, initialSupply);
+    
+    await erc20.burn(owner.address, ethers.parseUnits("100", 18));
+    
+    expect(await erc20.balanceOf(owner.address)).to.equal(ethers.parseUnits("900", 18));
+    expect(await erc20.totalSupply()).to.equal(ethers.parseUnits("900", 18));
+});
 })
