@@ -8,8 +8,8 @@ contract ERC20 is IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 amount);
 
     uint256 public totalSupply;
-    mapping (address=>uint256) balanceOf;
-    mapping (address=>mapping (address=>uint256)) allowance;
+    mapping (address=>uint256) public balanceOf;
+    mapping (address=>mapping (address=>uint256)) public allowance;
     string public name;
     string public symbol;
     uint8 public decimals;
