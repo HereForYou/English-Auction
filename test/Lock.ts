@@ -790,3 +790,72 @@ describe("MyNFT Contract", function () {
     });
   });
 });
+
+//======================================================= IERC1155 testing ============================================================================
+
+describe("MultiSmartFox Contract", function () {
+  let MultiSmartFox: any;
+  let multiSmartFox: any;
+  let owner: any;
+  let addr1: any;
+  let addr2: any;
+
+  beforeEach(async function () {
+      [owner, addr1, addr2] = await ethers.getSigners();
+
+      MultiSmartFox = await ethers.getContractFactory("MultiSmartFox");
+      multiSmartFox = await MultiSmartFox.deploy();
+  });
+
+  describe("Minting", function () {
+      it("Should mint a new token", async function () {
+          const tokenId = 1;
+          const value = 100;
+
+          await multiSmartFox.mint(tokenId, value, "0x");
+
+          const balance = await multiSmartFox.balanceOf(owner.address, tokenId);
+          expect(balance).to.equal(value);
+      });
+
+      it("Should batch mint tokens", async function () {
+          const tokenIds = [1, 2];
+          const values = [100, 200];
+
+          await multiSmartFox.batcMint(tokenIds, values, "0x");
+
+          const balance1 = await multiSmartFox.balanceOf(owner.address, tokenIds[0]);
+          const balance2 = await multiSmartFox.balanceOf(owner.address, tokenIds[1]);
+
+          expect(balance1).to.equal(values[0]);
+          expect(balance2).to.equal(values[1]);
+      });
+  });
+
+  describe("Burning", function () {
+      it("Should burn a token", async function () {
+          const tokenId = 1;
+          const value = 100;
+
+          await multiSmartFox.mint(tokenId, value, "0x");
+          await multiSmartFox.burn(tokenId, value);
+
+          const balance = await multiSmartFox.balanceOf(owner.address, tokenId);
+          expect(balance).to.equal(0);
+      });
+
+      it("Should batch burn tokens", async function () {
+          const tokenIds = [1, 2];
+          const values = [100, 200];
+
+          await multiSmartFox.batcMint(tokenIds, values, "0x");
+          await multiSmartFox.batchBurn(tokenIds, values);
+
+          const balance1 = await multiSmartFox.balanceOf(owner.address, tokenIds[0]);
+          const balance2 = await multiSmartFox.balanceOf(owner.address, tokenIds[1]);
+
+          expect(balance1).to.equal(0);
+          expect(balance2).to.equal(0);
+      });
+  });
+});
