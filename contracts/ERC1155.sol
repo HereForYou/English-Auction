@@ -60,7 +60,7 @@ contract ERC1155 is IERC11155 {
         require(to.code.length == 0 || IERC1155TokenReceiver(to).onERC1155Received(msg.sender, address(0), id, value, data) == IERC1155TokenReceiver.onERC1155Received.selector, "ERC1155: mint to non ERC1155Receiver implementer");
     }
 
-    function _mintBatch(address to, uint256[] memory ids, uint256[] memory values, bytes memory data) internal {
+    function _batchMint(address to, uint256[] memory ids, uint256[] memory values, bytes memory data) internal {
         require(to != address(0), "ERC1155: mint to the zero address");
         require(ids.length == values.length, "ERC1155: ids and values length mismatch");
         for(uint256 i = 0; i < ids.length; i++) {
@@ -75,11 +75,29 @@ contract ERC1155 is IERC11155 {
         balanceOf[from][id] -= value;
     }
     
-    function _burnBatch(address from, uint256[] memory ids, uint256[] memory values) internal {
+    function _batchBurn(address from, uint256[] memory ids, uint256[] memory values) internal {
         require(from != address(0), "ERC1155: burn from the zero address");
         require(ids.length == values.length, "ERC1155: ids and values length mismatch");
         for(uint256 i = 0; i < ids.length; i++) {
             balanceOf[from][ids[i]] -= values[i];
         }
+    }
+}
+
+contract MultiSmartFox is ERC1155 {
+    function mint(uint256 id, uint256 value, bytes memory data) public {
+        _mint(msg.sender, id, value, data);
+    }
+
+    function batcMint(uint256[] memory ids, uint256[] memory values, bytes memory data) public {
+        _batchMint(msg.sender, ids, values, data);
+    }
+
+    function burn(uint256 id, uint256 value) public {
+        _burn(msg.sender, id, value);
+    }
+
+    function batchBurn(uint256[] memory ids, uint256[] memory values) public {
+        _batchBurn(msg.sender, ids, values);
     }
 }
