@@ -859,3 +859,100 @@ describe("MultiSmartFox Contract", function () {
       });
   });
 });
+
+//======================================================= IERC20Permit testing ============================================================================
+
+describe("54 >>> ERC20Permit Contract", function () {
+  let ERC20Permit: any;
+  let erc20Permit: any;
+  let owner: any;
+  let addr1: any;
+  let addr2: any;
+
+  beforeEach(async function () {
+      // Get the ContractFactory and Signers here.
+      ERC20Permit = await ethers.getContractFactory("ERC20Permit");
+      [owner, addr1, addr2] = await ethers.getSigners();
+
+      // Deploy the contract
+      erc20Permit = await ERC20Permit.deploy("TestToken", "TTK", 18);
+  });
+
+  describe("Deployment", function () {
+      it("Should set the right name and symbol", async function () {
+          expect(await erc20Permit.name()).to.equal("TestToken");
+          expect(await erc20Permit.symbol()).to.equal("TTK");
+      });
+
+      it("Should set the right decimals", async function () {
+          expect(await erc20Permit.decimals()).to.equal(18);
+      });
+  });
+
+  describe("Transactions", function () {
+      it("Should mint tokens correctly", async function () {
+          await erc20Permit.mint(addr1.address, 100);
+          expect(await erc20Permit.balanceOf(addr1.address)).to.equal(100);
+      });
+
+      it("Should transfer tokens correctly", async function () {
+          await erc20Permit.mint(addr1.address, 100);
+          await erc20Permit.connect(addr1).transfer(addr2.address, 50);
+          expect(await erc20Permit.balanceOf(addr1.address)).to.equal(50);
+          expect(await erc20Permit.balanceOf(addr2.address)).to.equal(50);
+      });
+
+      it("Should approve and transferFrom correctly", async function () {
+          await erc20Permit.mint(addr1.address, 100);
+          await erc20Permit.connect(addr1).approve(addr2.address, 50);
+          await erc20Permit.connect(addr2).transferFrom(addr1.address, addr2.address, 50);
+          expect(await erc20Permit.balanceOf(addr1.address)).to.equal(50);
+          expect(await erc20Permit.balanceOf(addr2.address)).to.equal(50);
+      });
+  });
+
+
+  //======================================== not working yet ========================================================================================
+  // describe("Permit", function () {
+  //     it("Should allow gasless approvals", async function () {
+  //         const { v, r, s } = await getSignature(addr1, addr2, 50, erc20Permit);
+  //         console.log("deadline",Math.floor(Date.now() / 1000) + 600)
+  //         await erc20Permit.permit(addr1.address, addr2.address, 50, Math.floor(Date.now() / 1000) + 600, v, r, s);
+  //         expect(await erc20Permit.allowance(addr1.address, addr2.address)).to.equal(50);
+  //     });
+  // });
+});
+
+// Helper function to get the signature for permit
+async function getSignature(owner: any, spender: any, value: any, contract: any) {
+  const nonce = await contract.nonces(owner.address);
+  const deadline = Math.floor(Date.now() / 1000) + 60 * 10; // 10 minutes from now
+  const domain = {
+      name: await contract.name(),
+      version: "1",
+      chainId: (await owner.provider.getNetwork()).chainId,
+      verifyingContract: contract.address,
+  };
+
+  const types = {
+      Permit: [
+          { name: "owner", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "deadline", type: "uint256" },
+      ],
+  };
+
+  const valueToSign = {
+      owner: owner.address,
+      spender: spender.address,
+      value: value,
+      nonce: ethers.toNumber(nonce),
+      deadline: deadline,
+  };
+
+  const signature = await owner.signTypedData(domain, types, valueToSign);
+  const { v, r, s } = ethers.Signature.from(signature);
+  return { v, r, s };
+}
