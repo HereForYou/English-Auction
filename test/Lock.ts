@@ -956,3 +956,49 @@ async function getSignature(owner: any, spender: any, value: any, contract: any)
   const { v, r, s } = ethers.Signature.from(signature);
   return { v, r, s };
 }
+
+// //======================================================= PrecomputeContract testing ============================================================================
+
+// describe("Factory and FactoryTestContract", function () {
+//   let factory: any;
+//   let factoryTestContract: any;
+//   let owner: any;
+//   let addr1: any;
+
+//   before(async () => {
+//       [owner, addr1] = await ethers.getSigners();
+
+//       // Deploy the Factory contract
+//       const Factory = await ethers.getContractFactory("Factory");
+//       factory = await Factory.deploy();
+//   });
+
+//   it("should deploy FactoryTestContract with correct parameters", async function () {
+//       const salt = ethers.keccak256(ethers.toUtf8Bytes("salt"));
+//       const fooValue = 42;
+
+//       // Deploy the FactoryTestContract
+//       const tx = await factory.deploy(owner, fooValue, salt, { value: ethers.parseEther("1.0") });
+//       console.log("tx", tx)
+//       const receipt = await tx.wait();
+
+//       console.log("receipt", receipt.events); 
+
+//       // Ensure the event is emitted and get the contract address
+//       const events = receipt.events?.find((event: any) => event.event === "ContractDeployed");
+//       expect(events).to.not.be.undefined; // Ensure the event exists
+//       const testContractAddress = events?.args?.contractAddress;
+
+//       // Attach to the deployed FactoryTestContract
+//       factoryTestContract = await ethers.getContractAt("FactoryTestContract", testContractAddress);
+
+//       // Verify the owner and foo values
+//       expect(await factoryTestContract.owner()).to.equal(owner);
+//       expect(await factoryTestContract.foo()).to.equal(fooValue);
+//   });
+
+//   it("should have the correct balance", async function () {
+//       const balance = await factoryTestContract.getBalance();
+//       expect(balance).to.equal(ethers.parseEther("1.0"));
+//   });
+// });
