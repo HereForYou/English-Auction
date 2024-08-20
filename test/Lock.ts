@@ -1193,3 +1193,57 @@ describe("CrowdFund", function () {
     expect(await token.balanceOf(user1.address)).to.equal(ethers.parseEther("500"));
   });
 });
+
+//============================================================= Multi Call test ========================================================1
+
+describe("MultiCall", function () {
+  let multiCall: any;
+  let testMultiCall: any;
+
+  beforeEach(async function () {
+    // Deploy the TestMultiCall contract
+    const TestMultiCall = await ethers.getContractFactory("TestMultiCall");
+    testMultiCall = await TestMultiCall.deploy();
+
+    // Deploy the MultiCall contract
+    const MultiCall = await ethers.getContractFactory("MultiCall");
+    multiCall = await MultiCall.deploy();
+  });
+
+  it("should execute multiple calls correctly", async function () {
+    const targets = [await testMultiCall.getAddress(), await testMultiCall.getAddress()];
+    const data = [
+      await testMultiCall.getData(1),
+      await testMultiCall.getData(2)
+    ];
+
+    const results = await multiCall.multiCall(targets, data);
+
+    // Decode the results
+    const decodedResult1 = ethers.toBigInt(results[0]);
+    const decodedResult2 = ethers.toBigInt(results[1])
+
+    expect(decodedResult1).to.equal(1);
+    expect(decodedResult2).to.equal(2);
+  });
+
+  it("should revert if targets and data length do not match", async function () {
+    const targets = [await testMultiCall.getAddress()];
+    const data = [
+      await testMultiCall.getData(1),
+      await testMultiCall.getData(2)
+    ];
+
+    await expect(multiCall.multiCall(targets, data)).to.be.revertedWith("target length != data length");
+  });
+
+  it("should revert if a call fails", async function () {
+    const targets = [await testMultiCall.getAddress(), ethers.ZeroAddress]; // Invalid address
+    const data = [
+      await testMultiCall.getData(1),
+      await testMultiCall.getData(2)
+    ];
+
+    expect(await multiCall.multiCall(targets, data)).to.be.revertedWith("call failed");
+  });
+});
