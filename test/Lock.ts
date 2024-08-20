@@ -1002,3 +1002,112 @@ async function getSignature(owner: any, spender: any, value: any, contract: any)
 //       expect(balance).to.equal(ethers.parseEther("1.0"));
 //   });
 // });
+
+//============================================================= bidirectional payment channel test ========================================================
+describe("BiDirectionalPaymentChannel", function () {
+  let PaymentChannel: any;
+  let paymentChannel: any;
+  let users: any[];
+  let balances: number[];
+  let challengePeriod: number;
+  let expiresAt: number;
+
+  beforeEach(async function () {
+    // Get the contract factory
+    PaymentChannel = await ethers.getContractFactory("BiDirectionalPaymentChannel");
+
+    // Set up users and their balances
+    users = await ethers.getSigners();
+    users = users.splice(0, 2); // Remove the first user (owner)
+    balances = [1000, 2000]; // Example balances for Alice and Bob
+    challengePeriod = 300000; // Challenge period in seconds
+    expiresAt = Date.now() + 600000; // Set expiration to 10 minutes from now
+
+    // Deploy the contract
+    paymentChannel = await PaymentChannel.deploy(
+      [users[0].address, users[1].address],
+      balances,
+      expiresAt,
+      challengePeriod,
+      { value: ethers.parseEther("3") } // total funding
+    );
+
+
+  });
+
+  it("should correctly initialize the contract", async function () {
+    expect(await paymentChannel.balances(users[0].address)).to.equal(balances[0]);
+    expect(await paymentChannel.balances(users[1].address)).to.equal(balances[1]);
+    expect(await paymentChannel.challengePeriod()).to.equal(challengePeriod);
+  });
+
+  it("should allow users to challenge exit", async function () {
+    const newBalances = [1500, 1500];
+    const nonce = 1;
+
+    // Sign the new balances
+    const signatures = await Promise.all(users.map(async (user, index) => {
+      const messageHash = ethers.solidityPackedKeccak256(
+        ["address", "uint256[]", "uint256"],
+        [await paymentChannel.getAddress(), newBalances, nonce]
+      );
+      const messageHashBytes = ethers.toBeArray(messageHash);
+      return await user.signMessage(messageHashBytes);
+    }));
+
+    console.log("payment address", await paymentChannel.getAddress())
+    console.log("userslength", signatures.length," ",signatures[0], " ", signatures[1])
+    await paymentChannel.challengeExit(signatures, newBalances, nonce);
+
+    expect(await paymentChannel.balances(users[0].address)).to.equal(newBalances[0]);
+    expect(await paymentChannel.balances(users[1].address)).to.equal(newBalances[1]);
+  });
+
+  it("should allow users to withdraw funds after challenge period", async function () {
+    const newBalances = [1500, 1500];
+    const nonce = 1;
+
+    // Sign the new balances
+    const signatures = await Promise.all(users.map(async (user, index) => {
+      const messageHash = ethers.solidityPackedKeccak256(
+        ["address", "uint256[]", "uint256"],
+        [await paymentChannel.getAddress(), newBalances, nonce]
+      );
+      const messageHashBytes = ethers.toBeArray(messageHash);
+      return await user.signMessage(messageHashBytes);
+    }));
+
+    await paymentChannel.challengeExit(signatures, newBalances, nonce);
+
+    // Fast forward time to allow withdrawal
+    await ethers.provider.send("evm_increaseTime", [challengePeriod + 1]);
+    await ethers.provider.send("evm_mine");
+
+    await paymentChannel.connect(users[0]).withdraw();
+    await paymentChannel.connect(users[1]).withdraw();
+
+    expect(await ethers.provider.getBalance(users[0].address)).to.be.greaterThan(0);
+    expect(await ethers.provider.getBalance(users[1].address)).to.be.greaterThan(0);
+  });
+
+  it("should revert if challenge period has not expired", async function () {
+    const newBalances = [1500, 1500];
+    const nonce = 1;
+
+    // Sign the new balances
+    const signatures = await Promise.all(users.map(async (user, index) => {
+      const messageHash = ethers.solidityPackedKeccak256(
+        ["address", "uint256[]", "uint256"],
+        [await paymentChannel.getAddress(), newBalances, nonce]
+      );
+      const messageHashBytes = ethers.toBeArray(messageHash);
+      return await user.signMessage(messageHashBytes);
+    }));
+
+    await paymentChannel.challengeExit(signatures, newBalances, nonce);
+
+    await expect(paymentChannel.connect(users[0]).withdraw()).to.be.revertedWith(
+      "Channel is not expired"
+    );
+  });
+});
