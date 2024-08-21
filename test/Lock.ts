@@ -1223,8 +1223,8 @@ describe("MultiCall", function () {
     const decodedResult1 = ethers.toBigInt(results[0]);
     const decodedResult2 = ethers.toBigInt(results[1])
 
-    expect(decodedResult1).to.equal(1);
-    expect(decodedResult2).to.equal(2);
+    expect(decodedResult1).to.equal(10);
+    expect(decodedResult2).to.equal(20);
   });
 
   it("should revert if targets and data length do not match", async function () {

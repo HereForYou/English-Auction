@@ -23,7 +23,7 @@ contract MultiCall {
 
 contract TestMultiCall {
     function test(uint256 _i) external pure returns (uint256) {
-        return _i;
+        return _i * 10;
     }
 
     function getData(uint256 _i) external pure returns (bytes memory) {
