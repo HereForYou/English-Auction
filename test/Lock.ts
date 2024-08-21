@@ -1247,3 +1247,169 @@ describe("MultiCall", function () {
     expect(await multiCall.multiCall(targets, data)).to.be.revertedWith("call failed");
   });
 });
+
+//============================================================= Multi Delegate Call test ==================================================================
+//=======                                                                                                                                        ==========
+//=======                                                                                                                                        ==========
+//=======                                                              Not working                                                               ==========
+//=======                                                                                                                                        ==========
+//=======                                                                                                                                        ==========
+//============================================================= Multi Delegate Call test ==================================================================
+
+// describe("MultiDelegateCall", function () {
+//   let testMultiDelegateCall: any;
+//   let helper: any;
+
+//   before(async () => {
+//       const MultiDelegateCall = await ethers.getContractFactory("MultiDelegateCall");
+//       const TestMultiDelegateCall = await ethers.getContractFactory("TestMultiDelegateCall");
+//       const HelperTestMultiDelegateCall = await ethers.getContractFactory("HelperTestMultiDelegateCall");
+
+//       testMultiDelegateCall = await TestMultiDelegateCall.deploy();
+
+//       helper = await HelperTestMultiDelegateCall.deploy();
+//   });
+
+//   it("should call func1 and return the correct result", async () => {
+//       const x = 5;
+//       const y = 10;
+
+//       const func1Data = await helper.getFunc1Data(x, y);
+//       const results = await testMultiDelegateCall.multiDelegatecall([func1Data]);
+//       await results.wait();
+//       console.log(results[0]);
+//       const result = ethers.toBigInt(results[0]);
+//       expect(result).to.equal(x + y);
+//   });
+
+//   it("should call func2 and return the correct result", async () => {
+//       const func2Data = await helper.getFunc2Data();
+//       const results = await testMultiDelegateCall.multiDelegatecall([func2Data]);
+
+//       const result = ethers.toBigInt(results[0]);
+//       expect(result).to.equal(123);
+//   });
+
+//   it("should mint and update balance", async () => {
+//       const [owner] = await ethers.getSigners();
+//       const mintData = await helper.getMiintData();
+
+//       // Send some ether to mint
+//       const tx = await testMultiDelegateCall.multiDelegatecall([mintData], { value: ethers.parseEther("1.0") });
+//       await tx.wait();
+
+//       // Check balance
+//       const balance = await testMultiDelegateCall.balanceOf(owner.address);
+//       expect(balance).to.equal(ethers.parseEther("1.0"));
+//   });
+
+//   it("should revert on delegatecall failure", async () => {
+//       const invalidData = "0x12345678"; // Invalid function selector
+
+//       await expect(testMultiDelegateCall.multiDelegatecall([invalidData])).to.be.revertedWith("DelegatecallFailed()");
+//   });
+// });
+
+//============================================================= Lock Time test ==================================================================
+
+describe("TimeLock Contract", function () {
+  let TimeLock: any;
+  let timeLock: any;
+  let owner: any;
+  let addr1: any;
+
+  const MIN_DELAY = 10;
+  const MAX_DELAY = 1000;
+  const GRACE_PERIOD = 1000;
+
+  beforeEach(async () => {
+      TimeLock = await ethers.getContractFactory("TimeLock");
+      [owner, addr1] = await ethers.getSigners();
+      timeLock = await TimeLock.deploy();
+  });
+
+  it("Should set the correct owner", async () => {
+      expect(await timeLock.owner()).to.equal(owner.address);
+  });
+
+  it("Should queue a transaction", async () => {
+      const target = owner.address;
+      const value = 0;
+      const func = "someFunction";
+      const data = "0x";
+      const timestamp = (await ethers.provider.getBlock("latest")).timestamp + MIN_DELAY + 1;
+
+      const txId = await timeLock.getTxId(target, value, func, data, timestamp);
+      await timeLock.queue(target, value, func, data, timestamp);
+
+      expect(await timeLock.queued(txId)).to.be.true;
+  });
+
+  it("Should revert if queuing a transaction that is already queued", async () => {
+      const target = owner.address;
+      const value = 0;
+      const func = "someFunction";
+      const data = "0x";
+      const timestamp = (await ethers.provider.getBlock("latest")).timestamp + MIN_DELAY + 1;
+
+      const txId = await timeLock.getTxId(target, value, func, data, timestamp);
+      await timeLock.queue(target, value, func, data, timestamp);
+
+      await expect(timeLock.queue(target, value, func, data, timestamp)).revertedWithCustomError(timeLock, "AlreadyQueuedError");
+  });
+
+  it("Should execute a queued transaction", async () => {
+      const target = owner.address;
+      const value = 0;
+      const func = "someFunction";
+      const data = "0x";
+      const timestamp = (await ethers.provider.getBlock("latest")).timestamp + MIN_DELAY + 1;
+
+      const txId = await timeLock.getTxId(target, value, func, data, timestamp);
+      await timeLock.queue(target, value, func, data, timestamp);
+
+      // Fast forward time
+      await ethers.provider.send("evm_increaseTime", [MIN_DELAY + 1]);
+      await ethers.provider.send("evm_mine");
+
+      expect(await timeLock.execute(target, value, func, data, timestamp)).to.not.be.reverted;
+  });
+
+  it("Should revert if executing a transaction that is not queued", async () => {
+      const target = owner.address;
+      const value = 0;
+      const func = "someFunction";
+      const data = "0x";
+      const timestamp = (await ethers.provider.getBlock("latest")).timestamp + MIN_DELAY + 1;
+
+      const txId = await timeLock.getTxId(target, value, func, data, timestamp);
+
+      await expect(timeLock.execute(target, value, func, data, timestamp)).revertedWithCustomError(timeLock, "NotQueuedError");
+  });
+
+  it("Should cancel a queued transaction", async () => {
+      const target = owner.address;
+      const value = 0;
+      const func = "someFunction";
+      const data = "0x";
+      const timestamp = (await ethers.provider.getBlock("latest")).timestamp + MIN_DELAY + 1;
+
+      const txId = await timeLock.getTxId(target, value, func, data, timestamp);
+      await timeLock.queue(target, value, func, data, timestamp);
+      await timeLock.cancel(txId);
+
+      expect(await timeLock.queued(txId)).to.be.false;
+  });
+
+  it("Should revert if canceling a transaction that is not queued", async () => {
+      const target = owner.address;
+      const value = 0;
+      const func = "someFunction";
+      const data = "0x";
+      const timestamp = (await ethers.provider.getBlock("latest")).timestamp + MIN_DELAY + 1;
+
+      const txId = await timeLock.getTxId(target, value, func, data, timestamp);
+
+      await expect(timeLock.cancel(txId)).revertedWithCustomError(timeLock, "NotQueuedError");
+  });
+});
