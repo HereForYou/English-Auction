@@ -8,8 +8,8 @@ contract BiDirectionalPaymentChannel {
     using ECDSA for bytes32;
 
     address payable[2] public users;
-    mapping (address=>uint256) balances;
-    mapping (address=>bool) isUser;
+    mapping (address=>uint256) public balances;
+    mapping (address=>bool) public isUser;
 
     uint256 public expiresAt;
     uint256 public challengePeriod;
@@ -35,10 +35,10 @@ contract BiDirectionalPaymentChannel {
         challengePeriod = _challengePeriod;
     }
 
-    function verify(bytes[2] memory _signatures, address _contract, address[2] memory _signers, uint256[2] memory _balances, uint256 _nonce) public view returns (bool) {
+    function verify(bytes[2] memory _signatures, address _contract, address[2] memory _signers, uint256[2] memory _balances, uint256 _nonce) public pure returns (bool) {
         for (uint256 i = 0; i < _signers.length; i++) {
             bool valid = _signers[i] == 
-                keccak256(abi.encodePacked(_contract, _balances[i], nonce)).toEthSignedMessageHash().recover(_signatures[i]);
+                keccak256(abi.encodePacked(_contract, _balances, _nonce)).toEthSignedMessageHash().recover(_signatures[i]);
 
             if(!valid) {
                 return false;
